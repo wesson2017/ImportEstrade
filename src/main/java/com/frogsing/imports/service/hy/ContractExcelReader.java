@@ -12,6 +12,7 @@ import com.frogsing.dao.zj.BillPayDao;
 import com.frogsing.dao.zj.MemberFundDao;
 import com.frogsing.dao.zy.SaleResourceDao;
 import com.frogsing.dao.zy.StockDao;
+import com.frogsing.dao.zy.StockDetailDao;
 import com.frogsing.heart.exception.E;
 import com.frogsing.heart.exception.ServiceException;
 import com.frogsing.heart.security.utils.MD5;
@@ -30,9 +31,11 @@ import com.frogsing.po.entity.zj.BillPay;
 import com.frogsing.po.entity.zj.MemberFund;
 import com.frogsing.po.entity.zy.SaleResource;
 import com.frogsing.po.entity.zy.Stock;
+import com.frogsing.po.entity.zy.StockDetail;
 import com.frogsing.po.utils.Colums;
 import com.frogsing.po.utils.Consts;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import freemarker.template.TemplateException;
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFDateUtil;
@@ -88,6 +91,8 @@ public class ContractExcelReader {
 	private SaleResourceDao saleResourceDao;
 	@Autowired
 	private BillPayDao billPayDao;
+	@Autowired
+	private StockDetailDao stockDetailDao;
 
 	public void excelReader(InputStream is,String filename) throws Exception{
 		Sheet sheet;
@@ -124,6 +129,10 @@ public class ContractExcelReader {
 			}
 			tCell=getCellFormatValue(row.getCell(i));
 			if(B.Y(tCell) || "null".equalsIgnoreCase(tCell)) {
+				continue;
+			}
+			if ("序号".contains(tCell)) {
+				putColName(colmap,Colums.ht_contract.scontractno,i);
 				continue;
 			}
 			if ("挂牌日期".contains(tCell)) {
@@ -239,153 +248,227 @@ public class ContractExcelReader {
 		Row row ;
 		//int colNum = row.getPhysicalNumberOfCells();
 		// 正文内容应该从第二行开始,第一行为表头的标题
+		Map<String,Map<String,Object>> map = new HashMap<String, Map<String, Object>>();
+		//Map<String,Map<String,Object>> dtl = new HashMap<String, Map<String, Object>>();
 		for (int i = 2; i <=rowNum; i++) {
 			row = sheet.getRow(i);
 			if (row == null || row.getFirstCellNum() == -1) {
 				continue;
 				//E.S("第" + (i + 1) + "行数据格式不正确");
 			}
-
-			/**------------**/
-
-			if (B.Y(getCellValue(colmap,row, Colums.ht_contract.dcontractdate))) {
-				E.S("第" + (i + 1) + "行合同日期不能为空");
+			String code = getCellValue(colmap, row, Colums.ht_contract.scontractno);
+			if (B.Y(code)) {
+				E.S("第" + (i + 1) + "行合同序号不能为空");
 			}
-			if (B.Y(getCellValue(colmap,row, Colums.zy_saleresource.dbegindate))) {
-				E.S("第" + (i + 1) + "行挂牌日期不能为空");
-			}
-			if (B.Y(getCellValue(colmap,row, Colums.zj_billpay.dpaytime))) {
-				E.S("第" + (i + 1) + "行支付日期不能为空");
-			}
-			if (B.Y(getCellValue(colmap,row, Colums.ht_contract.sbuyermembername))) {
-				E.S("第" + (i + 1) + "行采购方全称不能为空");
-			}
-			if (B.Y(getCellValue(colmap,row, Colums.ht_contract.ssellermembername))) {
-				E.S("第" + (i + 1) + "行销售方全称不能为空");
-			}
-			if (B.Y(getCellValue(colmap,row, Colums.ht_contract.swarehouse))) {
-				E.S("第" + (i + 1) + "行仓库不能为空");
-			}
-			if (B.Y(getCellValue(colmap,row, Colums.ht_contractdetail.scommodityname))) {
+			map.put(code, new HashMap<String, Object>());
+			if (B.Y(getCellValue(colmap, row, Colums.ht_contractdetail.scommodityname))) {
 				E.S("第" + (i + 1) + "行品名不能为空");
 			}
-			if (B.Y(getCellValue(colmap,row, Colums.ht_contractdetail.fprice))) {
+			if (B.Y(getCellValue(colmap, row, Colums.ht_contractdetail.fprice))) {
 				E.S("第" + (i + 1) + "行单价不能为空");
 			}
-			if (B.Y(getCellValue(colmap,row, Colums.ht_contractdetail.fweight))) {
+			if (B.Y(getCellValue(colmap, row, Colums.ht_contractdetail.fweight))) {
 				E.S("第" + (i + 1) + "行数量不能为空");
 			}
-			if (B.Y(getCellValue(colmap,row, Colums.ht_sendorder.dorderdate))) {
-				E.S("第" + (i + 1) + "行发货日期不能为空");
-			}
-			if (B.Y(getCellValue(colmap,row, Colums.ht_sendorder.dacceptdate))) {
-				E.S("第" + (i + 1) + "行收货日期不能为空");
-			}
-			if (B.Y(getCellValue(colmap,row, Colums.ht_contract.dmakeinvoicedate))) {
-				E.S("第" + (i + 1) + "行开票日期不能为空");
-			}
-			if (B.Y(getCellValue(colmap,row, Colums.ht_contract.drsvinvoicedate))) {
-				E.S("第" + (i + 1) + "行收票日期不能为空");
+
+			List<Commodity> commoditys = commodityDao.findBySname(getCellValue(colmap, row, Colums.ht_contractdetail.scommodityname));
+			if (B.Y(commoditys)) {
+				E.S("第" + (i + 1) + "行品名【" + getCellValue(colmap, row, Colums.ht_contractdetail.scommodityname) + "】不存在");
 			}
 
-			Date dcontractdate=null;
+			double fprice = 0D;
 			try {
-				dcontractdate = DateUtils.parseDateByFormat(getCellValue(colmap,row, Colums.ht_contract.dcontractdate),"yyyy-MM-dd");
-			} catch (Exception e) {
-				e.printStackTrace();
-				E.S("第" + (i + 1) + "行合同日期不合法");
-			}
-			Date dorderdate=null;
-			try {
-				dorderdate = DateUtils.parseDateByFormat(getCellValue(colmap,row, Colums.ht_sendorder.dorderdate),"yyyy-MM-dd");
-			} catch (Exception e) {
-				e.printStackTrace();
-				E.S("第" + (i + 1) + "行发货日期不合法");
-			}
-			Date dacceptdate=null;
-			try {
-				dacceptdate = DateUtils.parseDateByFormat(getCellValue(colmap,row, Colums.ht_sendorder.dacceptdate),"yyyy-MM-dd");
-			} catch (Exception e) {
-				e.printStackTrace();
-				E.S("第" + (i + 1) + "行收货日期不合法");
-			}
-			Date dmakeinvoicedate=null;
-			try {
-				dmakeinvoicedate = DateUtils.parseDateByFormat(getCellValue(colmap,row, Colums.ht_contract.dmakeinvoicedate),"yyyy-MM-dd");
-			} catch (Exception e) {
-				e.printStackTrace();
-				E.S("第" + (i + 1) + "行开票日期不合法");
-			}
-			Date drsvinvoicedate=null;
-			try {
-				drsvinvoicedate = DateUtils.parseDateByFormat(getCellValue(colmap,row, Colums.ht_contract.drsvinvoicedate),"yyyy-MM-dd");
-			} catch (Exception e) {
-				e.printStackTrace();
-				E.S("第" + (i + 1) + "行收票日期不合法");
-			}
-
-			Date dgpdate=null;
-			try {
-				dgpdate = DateUtils.parseDateByFormat(getCellValue(colmap,row, Colums.zy_saleresource.dbegindate),"yyyy-MM-dd");
-			} catch (Exception e) {
-				e.printStackTrace();
-				E.S("第" + (i + 1) + "行挂牌日期不合法");
-			}
-
-			Date dpaydate=null;
-			try {
-				dpaydate = DateUtils.parseDateByFormat(getCellValue(colmap,row, Colums.zj_billpay.dpaytime),"yyyy-MM-dd");
-			} catch (Exception e) {
-				e.printStackTrace();
-				E.S("第" + (i + 1) + "行支付日期不合法");
-			}
-
-			Date ddeliverydate=null;
-			try {
-				ddeliverydate = DateUtils.parseDateByFormat(getCellValue(colmap,row, Colums.ht_contract.ddeliverydate),"yyyy-MM-dd");
-			} catch (Exception e) {
-			}
-			Member buyer=memberDao.findByScnname(getCellValue(colmap,row, Colums.ht_contract.sbuyermembername));
-			if(buyer == null) {
-				E.S("第" + (i + 1) + "行采购方【" + getCellValue(colmap,row, Colums.ht_contract.sbuyermembername) + "】会员不存在");
-			}
-			Member seller=memberDao.findByScnname(getCellValue(colmap,row, Colums.ht_contract.ssellermembername));
-			if(seller == null) {
-				E.S("第" + (i + 1) + "行销售方【" + getCellValue(colmap,row, Colums.ht_contract.ssellermembername) + "】会员不存在");
-			}
-			User buyu=userDao.findBySmemberidAndBisadmin(buyer.getId(),1);
-			User sellu=userDao.findBySmemberidAndBisadmin(seller.getId(),1);
-
-			Warehouse warehouse=warehouseDao.findBySwarehousename(getCellValue(colmap,row, Colums.ht_contract.swarehouse));
-			if(warehouse == null) {
-				E.S("第" + (i + 1) + "行仓库【" + getCellValue(colmap,row, Colums.ht_contract.swarehouse) + "】不存在");
-			}
-
-			List<Commodity> commoditys=commodityDao.findBySname(getCellValue(colmap,row, Colums.ht_contractdetail.scommodityname));
-			if(B.Y(commoditys)){
-				E.S("第" + (i + 1) + "行品名【" + getCellValue(colmap,row, Colums.ht_contractdetail.scommodityname) + "】不存在");
-			}
-
-			double fprice=0D;
-			try {
-				fprice = Double.parseDouble(getCellValue(colmap,row, Colums.ht_contractdetail.fprice));
+				fprice = Double.parseDouble(getCellValue(colmap, row, Colums.ht_contractdetail.fprice));
 			} catch (Exception e) {
 				e.printStackTrace();
 				E.S("第" + (i + 1) + "行单价不合法");
 			}
-			double fweight=0D;
+			double fweight = 0D;
 			try {
-				fweight = Double.parseDouble(getCellValue(colmap,row, Colums.ht_contractdetail.fweight));
+				fweight = Double.parseDouble(getCellValue(colmap, row, Colums.ht_contractdetail.fweight));
 			} catch (Exception e) {
 				e.printStackTrace();
 				E.S("第" + (i + 1) + "行数量不合法");
 			}
 
+			if (code.indexOf("~") == -1) {
+				if (B.Y(getCellValue(colmap, row, Colums.ht_contract.dcontractdate))) {
+					E.S("第" + (i + 1) + "行合同日期不能为空");
+				}
+				if (B.Y(getCellValue(colmap, row, Colums.zy_saleresource.dbegindate))) {
+					E.S("第" + (i + 1) + "行挂牌日期不能为空");
+				}
+				if (B.Y(getCellValue(colmap, row, Colums.zj_billpay.dpaytime))) {
+					E.S("第" + (i + 1) + "行支付日期不能为空");
+				}
+				if (B.Y(getCellValue(colmap, row, Colums.ht_contract.sbuyermembername))) {
+					E.S("第" + (i + 1) + "行采购方全称不能为空");
+				}
+				if (B.Y(getCellValue(colmap, row, Colums.ht_contract.ssellermembername))) {
+					E.S("第" + (i + 1) + "行销售方全称不能为空");
+				}
+				if (B.Y(getCellValue(colmap, row, Colums.ht_contract.swarehouse))) {
+					E.S("第" + (i + 1) + "行仓库不能为空");
+				}
+				if (B.Y(getCellValue(colmap, row, Colums.ht_sendorder.dorderdate))) {
+					E.S("第" + (i + 1) + "行发货日期不能为空");
+				}
+				if (B.Y(getCellValue(colmap, row, Colums.ht_sendorder.dacceptdate))) {
+					E.S("第" + (i + 1) + "行收货日期不能为空");
+				}
+				if (B.Y(getCellValue(colmap, row, Colums.ht_contract.dmakeinvoicedate))) {
+					E.S("第" + (i + 1) + "行开票日期不能为空");
+				}
+				if (B.Y(getCellValue(colmap, row, Colums.ht_contract.drsvinvoicedate))) {
+					E.S("第" + (i + 1) + "行收票日期不能为空");
+				}
+				Date dcontractdate = null;
+				try {
+					dcontractdate = DateUtils.parseDateByFormat(getCellValue(colmap, row, Colums.ht_contract.dcontractdate), "yyyy-MM-dd");
+					map.get(code).put(Colums.ht_contract.dcontractdate, dcontractdate);
+				} catch (Exception e) {
+					e.printStackTrace();
+					E.S("第" + (i + 1) + "行合同日期不合法");
+				}
+				Date dorderdate = null;
+				try {
+					dorderdate = DateUtils.parseDateByFormat(getCellValue(colmap, row, Colums.ht_sendorder.dorderdate), "yyyy-MM-dd");
+					map.get(code).put(Colums.ht_sendorder.dorderdate, dorderdate);
+				} catch (Exception e) {
+					e.printStackTrace();
+					E.S("第" + (i + 1) + "行发货日期不合法");
+				}
+				Date dacceptdate = null;
+				try {
+					dacceptdate = DateUtils.parseDateByFormat(getCellValue(colmap, row, Colums.ht_sendorder.dacceptdate), "yyyy-MM-dd");
+					map.get(code).put(Colums.ht_sendorder.dacceptdate, dacceptdate);
+				} catch (Exception e) {
+					e.printStackTrace();
+					E.S("第" + (i + 1) + "行收货日期不合法");
+				}
+				Date dmakeinvoicedate = null;
+				try {
+					dmakeinvoicedate = DateUtils.parseDateByFormat(getCellValue(colmap, row, Colums.ht_contract.dmakeinvoicedate), "yyyy-MM-dd");
+					map.get(code).put(Colums.ht_contract.dmakeinvoicedate, dmakeinvoicedate);
+				} catch (Exception e) {
+					e.printStackTrace();
+					E.S("第" + (i + 1) + "行开票日期不合法");
+				}
+				Date drsvinvoicedate = null;
+				try {
+					drsvinvoicedate = DateUtils.parseDateByFormat(getCellValue(colmap, row, Colums.ht_contract.drsvinvoicedate), "yyyy-MM-dd");
+					map.get(code).put(Colums.ht_contract.drsvinvoicedate, drsvinvoicedate);
+				} catch (Exception e) {
+					e.printStackTrace();
+					E.S("第" + (i + 1) + "行收票日期不合法");
+				}
+
+				Date dgpdate = null;
+				try {
+					dgpdate = DateUtils.parseDateByFormat(getCellValue(colmap, row, Colums.zy_saleresource.dbegindate), "yyyy-MM-dd");
+					map.get(code).put(Colums.zy_saleresource.dbegindate, dgpdate);
+				} catch (Exception e) {
+					e.printStackTrace();
+					E.S("第" + (i + 1) + "行挂牌日期不合法");
+				}
+
+				Date dpaydate = null;
+				try {
+					dpaydate = DateUtils.parseDateByFormat(getCellValue(colmap, row, Colums.zj_billpay.dpaytime), "yyyy-MM-dd");
+					map.get(code).put(Colums.zj_billpay.dpaytime, dpaydate);
+				} catch (Exception e) {
+					e.printStackTrace();
+					E.S("第" + (i + 1) + "行支付日期不合法");
+				}
+
+				Date ddeliverydate = null;
+				try {
+					ddeliverydate = DateUtils.parseDateByFormat(getCellValue(colmap, row, Colums.ht_contract.ddeliverydate), "yyyy-MM-dd");
+					map.get(code).put(Colums.ht_contract.ddeliverydate, ddeliverydate);
+				} catch (Exception e) {
+				}
+				Member buyer = memberDao.findByScnname(getCellValue(colmap, row, Colums.ht_contract.sbuyermembername));
+				if (buyer == null) {
+					E.S("第" + (i + 1) + "行采购方【" + getCellValue(colmap, row, Colums.ht_contract.sbuyermembername) + "】会员不存在");
+				}
+				map.get(code).put("buyer", buyer);
+				Member seller = memberDao.findByScnname(getCellValue(colmap, row, Colums.ht_contract.ssellermembername));
+				if (seller == null) {
+					E.S("第" + (i + 1) + "行销售方【" + getCellValue(colmap, row, Colums.ht_contract.ssellermembername) + "】会员不存在");
+				}
+				map.get(code).put("seller", seller);
+				User buyu = userDao.findBySmemberidAndBisadmin(buyer.getId(), 1);
+				User sellu = userDao.findBySmemberidAndBisadmin(seller.getId(), 1);
+
+				map.get(code).put("buyu", buyu);
+				map.get(code).put("sellu", sellu);
+				Warehouse warehouse = warehouseDao.findBySwarehousename(getCellValue(colmap, row, Colums.ht_contract.swarehouse));
+				if (warehouse == null) {
+					E.S("第" + (i + 1) + "行仓库【" + getCellValue(colmap, row, Colums.ht_contract.swarehouse) + "】不存在");
+				}
+				map.get(code).put("warehouse", warehouse);
+
+				map.get(code).put("commodity", commoditys.get(0));
+				map.get(code).put(Colums.ht_contractdetail.fprice, fprice);
+				map.get(code).put(Colums.ht_contractdetail.fweight, fweight);
+				map.get(code).put(Colums.ht_contractdetail.sspec, getCellValue(colmap,row, Colums.ht_contractdetail.sspec));
+				map.get(code).put(Colums.ht_contractdetail.smaterial, getCellValue(colmap,row, Colums.ht_contractdetail.smaterial));
+				map.get(code).put(Colums.ht_contractdetail.sbrand, getCellValue(colmap,row, Colums.ht_contractdetail.sbrand));
+				map.get(code).put(Colums.ht_contractdetail.sproducer, getCellValue(colmap,row, Colums.ht_contractdetail.sproducer));
+
+				map.get(code).put(Colums.ht_contract.sinvalidatereason, getCellValue(colmap,row, Colums.ht_contract.sinvalidatereason));
+				map.get(code).put(Colums.ht_contract.sinvalidatereason+"CN", getCellValue(colmap,row, Colums.ht_contract.sinvalidatereason+"CN"));
+				map.get(code).put(Colums.ht_contract.sterms, getCellValue(colmap,row, Colums.ht_contract.sterms));
+				map.get(code).put(Colums.ht_contract.sterms+"CN", getCellValue(colmap,row, Colums.ht_contract.sterms+"CN"));
+				map.get(code).put("row",i);
+			} else {
+				code = code.substring(0, code.indexOf("~"));
+				List<Map<String, Object>> dtllist = Lists.newArrayList();
+				if (map.get(code).containsKey("dtllist"))
+					dtllist = (List<Map<String, Object>>) map.get(code).get("dtllist");
+				Map<String, Object> dtlmap = Maps.newHashMap();
+				dtlmap.put("commodity", commoditys.get(0));
+				dtlmap.put(Colums.ht_contractdetail.fprice, fprice);
+				dtlmap.put(Colums.ht_contractdetail.fweight, fweight);
+				dtlmap.put(Colums.ht_contractdetail.sspec, getCellValue(colmap,row, Colums.ht_contractdetail.sspec));
+				dtlmap.put(Colums.ht_contractdetail.smaterial, getCellValue(colmap,row, Colums.ht_contractdetail.smaterial));
+				dtlmap.put(Colums.ht_contractdetail.sbrand, getCellValue(colmap,row, Colums.ht_contractdetail.sbrand));
+				dtlmap.put(Colums.ht_contractdetail.sproducer, getCellValue(colmap,row, Colums.ht_contractdetail.sproducer));
+				dtllist.add(dtlmap);
+				map.get(code).put("dtllist", dtllist);
+			}
+			/**------------**/
+		}
+
+		if(map.isEmpty())
+			return;
+		for(Map.Entry<String,Map<String,Object>> entry:map.entrySet()){
+			Map<String,Object> curmap=entry.getValue();
+			Member seller =(Member) curmap.get("seller");
+			Member buyer =(Member) curmap.get("buyer");
+			User sellu =(User) curmap.get("sellu");
+			User buyu =(User) curmap.get("buyu");
+			Commodity commoditys =(Commodity) curmap.get("commodity");
+			Warehouse warehouse =(Warehouse) curmap.get("warehouse");
+			Date dcontractdate = (Date)curmap.get(Colums.ht_contract.dcontractdate);
+			Date dorderdate = (Date)curmap.get(Colums.ht_sendorder.dorderdate);
+			Date dacceptdate = (Date)curmap.get(Colums.ht_sendorder.dacceptdate);
+
+			Date dmakeinvoicedate = (Date)curmap.get(Colums.ht_contract.dmakeinvoicedate);
+			Date drsvinvoicedate = (Date)curmap.get(Colums.ht_contract.drsvinvoicedate);
+			Date dgpdate = (Date)curmap.get(Colums.zy_saleresource.dbegindate);
+			Date dpaydate = (Date)curmap.get(Colums.zj_billpay.dpaytime);
+
+			Date ddeliverydate = (Date)curmap.get(Colums.ht_contract.ddeliverydate);
+			Double fweight=(Double) curmap.get(Colums.ht_contractdetail.fweight);
+			Double fprice=(Double) curmap.get(Colums.ht_contractdetail.fprice);
+
+
 			Stock stock=new Stock();
 			stock.setId(null);
 			stock.setIresourcetype(Consts.SaleResourceType.General.val());  //资源类型 int
 			stock.setSbillid("");  //单据id String
-			String stockno = "UPSK"+DateUtils.dateToString(dcontractdate,"yyMMdd")+StringHelper.randomNum(10);
+			String stockno = "UPSK"+DateUtils.dateToString((Date)curmap.get("dcontractdate"),"yyMMdd")+StringHelper.randomNum(10);
 			stock.setSstockno(stockno);  //库存编号 String
 			stock.setIsitetype(Consts.SiteType.Host.val());  //分站 int
 			stock.setIlight(0);  //验证类型 int
@@ -396,15 +479,15 @@ public class ContractExcelReader {
 			stock.setSusername(sellu.getSusername());
 			stock.setSmembername(seller.getScnname());
 			stock.setSmemberno(seller.getSmemberno());
-			stock.setSbigcategoryid(commoditys.get(0).getCategory().getSparentid());  //品种大类ID String
+			stock.setSbigcategoryid(commoditys.getCategory().getSparentid());  //品种大类ID String
 			stock.setSbigcategorysystemcode("");  //品种大类编码 String
 			stock.setSbigcategoryname("");  //品种大类名称 String
-			stock.setScategorysystemcode(commoditys.get(0).getCategory().getSsystemcode());  //品种编码 String
-			stock.setScategoryid(commoditys.get(0).getCategory().getId());  //品种ID String
-			stock.setScategory(commoditys.get(0).getCategory().getSname());  //品种名称 String
-			stock.setScommodityid(commoditys.get(0).getId());  //品名ID String
-			stock.setScommoditysystemcode(commoditys.get(0).getScommoditysystemcode());  //品名编码 String
-			stock.setScommodityname(commoditys.get(0).getSname());  //品名 String
+			stock.setScategorysystemcode(commoditys.getCategory().getSsystemcode());  //品种编码 String
+			stock.setScategoryid(commoditys.getCategory().getId());  //品种ID String
+			stock.setScategory(commoditys.getCategory().getSname());  //品种名称 String
+			stock.setScommodityid(commoditys.getId());  //品名ID String
+			stock.setScommoditysystemcode(commoditys.getScommoditysystemcode());  //品名编码 String
+			stock.setScommodityname(commoditys.getSname());  //品名 String
 			stock.setSlocalname("");  //俗名 String
 			stock.setSenname("");  //英文名 String
 			stock.setSsubstitute("");  //替代品 String
@@ -416,19 +499,19 @@ public class ContractExcelReader {
 			stock.setSwoodlevel("");  //等级 String
 
 
-			stock.setSspec(getCellValue(colmap,row, Colums.ht_contractdetail.sspec));  //规格 String
+			stock.setSspec((String) curmap.get(Colums.ht_contractdetail.sspec));  //规格 String
 			stock.setFspeca(0D);  //规格参数1 double
 			stock.setFspecb(0D);  //规格参数2 double
 			stock.setFspecc(0D);  //规格参数3 double
-			stock.setSmaterial(getCellValue(colmap,row, Colums.ht_contractdetail.smaterial));  //材质 String
+			stock.setSmaterial((String) curmap.get(Colums.ht_contractdetail.smaterial));  //材质 String
 			stock.setSorigincountryid("");  //产地国家id String
 			stock.setSoriginareaid("");  //产地地区id String
 			stock.setSorigincountry("");  //产地国家 String
 			stock.setSoriginarea("");  //产地地区 String
-			stock.setSbrand(getCellValue(colmap,row, Colums.ht_contractdetail.sbrand));  //品牌 String
-			stock.setSproducer(getCellValue(colmap,row, Colums.ht_contractdetail.sproducer));  //生产厂家 String
+			stock.setSbrand((String) curmap.get(Colums.ht_contractdetail.sbrand));  //品牌 String
+			stock.setSproducer((String) curmap.get(Colums.ht_contractdetail.sproducer));  //生产厂家 String
 			stock.setSpacking("");  //包装 String
-			stock.setSweightunit(commoditys.get(0).getSweightunit());  //数量单位 String
+			stock.setSweightunit(commoditys.getSweightunit());  //数量单位 String
 			stock.setSstandard("");  //技术标准 String
 			stock.setSmeasurement("");  //计量方式 String
 			stock.setDproductiondate(null);  //生产日期 Date
@@ -466,6 +549,29 @@ public class ContractExcelReader {
 
 
 			stockDao.save(stock);
+			List<Map<String,Object>> list=Lists.newArrayList();
+			if(curmap.containsKey("dtllist")){
+				list=(List<Map<String,Object>>)curmap.get("dtllist");
+			}
+
+			if(B.N(list)){
+				for(Map<String,Object> obj:list){
+
+					StockDetail sd=new StockDetail();
+					sd.setId(null);
+					sd.setStockid(stock.getId());
+					sd.setScommodityid(((Commodity)obj.get("commodity")).getId());
+					sd.setScommodityname(((Commodity)obj.get("commodity")).getSname());
+					sd.setSbrand((String) obj.get(Colums.ht_contractdetail.sbrand));
+					sd.setSspec((String) obj.get(Colums.ht_contractdetail.sspec));
+					sd.setSmaterial((String) obj.get(Colums.ht_contractdetail.smaterial));
+					sd.setSweightunit(((Commodity)obj.get("commodity")).getSweightunit());
+					sd.setFweight((Double) obj.get(Colums.ht_contractdetail.fweight));
+					sd.setFprice((Double) obj.get(Colums.ht_contractdetail.fprice));
+					stockDetailDao.save(sd);
+				}
+			}
+
 			SaleResource res=new SaleResource();
 			res.setId(null);
 			//添加挂牌资源
@@ -583,7 +689,7 @@ public class ContractExcelReader {
 			this.contractDao.save(c);
 
 
-			Categorycontent ccs=categorycontentService.findByContentScategoryId(c.getIcontracttype(),commoditys.get(0).getScategoryid());
+			Categorycontent ccs=categorycontentService.findByContentScategoryId(c.getIcontracttype(),commoditys.getScategoryid());
 			if(ccs != null){
 				Map<String, Object> _maparr = new HashMap<String, Object>();
 				_maparr.put("contract", c);
@@ -593,58 +699,10 @@ public class ContractExcelReader {
 			this.contractDao.save(c);
 
 			if(F.compareMoney(fprice,0)<=0)
-				E.S("第" + (i + 1) + "行价格必须大于0");
+				E.S("第" + ((Integer)curmap.get("row") + 1) + "行价格必须大于0");
 
 			if(F.compareWeight(fweight,0)<=0)
-				E.S("第" + (i + 1) + "行重量必须大于0");
-
-			Map<String,Integer> _mapd=new HashMap<String,Integer>();
-			ContractDetail d = new ContractDetail();
-			d.setId(null);
-
-			d.setBisprotocal(Consts.BoolType.NO.val());
-			d.setDadddate(T.now());
-			d.setDproductiondate(T.now());
-			d.setFaddprice(0D);
-			d.setFnumberweight(fweight);
-			d.setFprice(fprice);
-			d.setFsaleprice(fprice);
-			d.setFweight(fweight);
-			d.setFoutprice(fprice);
-			d.setFoutamount(famount);
-			d.setFoutweight(fweight);
-			d.setFacceptweight(fweight);
-			d.setForderweight(fweight);
-			d.setInumber(1l);
-			d.setIordernumber(1L);
-			d.setIoutnumber(1L);
-			d.setSweightunit(commoditys.get(0).getSweightunit());
-			d.setSbalecode("");
-			d.setSbigcategoryid(commoditys.get(0).getCategory().getSparentid());
-			d.setSbigcategoryname("");
-			d.setSbigcategorysystemcode("");
-			d.setSbigpic("");
-			d.setSbrand(getCellValue(colmap,row, Colums.ht_contractdetail.sbrand));
-			d.setScategory(commoditys.get(0).getCategory().getSname());
-			d.setScategoryid(commoditys.get(0).getScategoryid());
-			d.setScategorysystemcode(commoditys.get(0).getCategory().getSsystemcode());
-			d.setScommodityid(commoditys.get(0).getId());
-			d.setScommodityname(commoditys.get(0).getSname());
-			d.setScommoditysystemcode(commoditys.get(0).getScommoditysystemcode());
-			d.setScontractid(c.getId());
-			d.setSfriendno("");
-			d.setSmaterial(getCellValue(colmap,row, Colums.ht_contractdetail.smaterial));
-			d.setSmeasurement("");
-			d.setSspec(getCellValue(colmap,row, Colums.ht_contractdetail.sspec));
-			d.setSproducer(getCellValue(colmap,row, Colums.ht_contractdetail.sproducer));
-			d.setSresourceid(res.getId());
-			d.setSresourceno(res.getSresourceno());
-			d.setStinypic("");
-			d.setSwarehouse(warehouse.getSwarehousename());
-			d.setSwarehouseid(warehouse.getId());
-			d.setSwoodlevel("");
-			d.setSstockid(stock.getId());
-			this.contractDetailDao.save(d);
+				E.S("第" + ((Integer)curmap.get("row") + 1) + "行重量必须大于0");
 
 
 			//保存发货单信息
@@ -670,30 +728,89 @@ public class ContractExcelReader {
 			so.setBisfinish(Consts.BoolType.YES.val());
 			sendOrderDao.save(so);
 
-			SendOrderDetail sod=new SendOrderDetail();
-			sod.setScontractid(c.getId());
-			sod.setSorderid(so.getId());
-			sod.setScontractdetailid(d.getId());
-			sod.setIorderpackage(1l);
-			sod.setIoutpackage(1l);
-			sod.setBisfinish(Consts.BoolType.YES.val());
-			sod.setFoderweight(fweight);
-			sod.setFoutweight(fweight);
+			if(B.Y(list)){
+				list.add(curmap);
+			}
+			for(Map<String,Object> obj:list){
+				fprice=(Double) obj.get(Colums.ht_contractdetail.fprice);
+				fweight=(Double) obj.get(Colums.ht_contractdetail.fweight);
+				commoditys = ((Commodity)obj.get("commodity"));
 
-			sendOrderDetailDao.save(sod);
+				ContractDetail d = new ContractDetail();
+				d.setId(null);
+
+				d.setBisprotocal(Consts.BoolType.NO.val());
+				d.setDadddate(T.now());
+				d.setDproductiondate(T.now());
+				d.setFaddprice(0D);
+				d.setFnumberweight(fweight);
+				d.setFprice(fprice);
+				d.setFsaleprice(fprice);
+				d.setFweight(fweight);
+				d.setFoutprice(fprice);
+				d.setFoutamount(famount);
+				d.setFoutweight(fweight);
+				d.setFacceptweight(fweight);
+				d.setForderweight(fweight);
+				d.setInumber(1l);
+				d.setIordernumber(1L);
+				d.setIoutnumber(1L);
+				d.setSweightunit(commoditys.getSweightunit());
+				d.setSbalecode("");
+				d.setSbigcategoryid(commoditys.getCategory().getSparentid());
+				d.setSbigcategoryname("");
+				d.setSbigcategorysystemcode("");
+				d.setSbigpic("");
+				d.setSbrand((String) obj.get(Colums.ht_contractdetail.sbrand));
+				d.setScategory(commoditys.getCategory().getSname());
+				d.setScategoryid(commoditys.getScategoryid());
+				d.setScategorysystemcode(commoditys.getCategory().getSsystemcode());
+				d.setScommodityid(commoditys.getId());
+				d.setScommodityname(commoditys.getSname());
+				d.setScommoditysystemcode(commoditys.getScommoditysystemcode());
+				d.setScontractid(c.getId());
+				d.setSfriendno("");
+				d.setSmaterial((String) obj.get(Colums.ht_contractdetail.smaterial));
+				d.setSmeasurement("");
+				d.setSspec((String) obj.get(Colums.ht_contractdetail.sspec));
+				d.setSproducer((String) obj.get(Colums.ht_contractdetail.sproducer));
+				d.setSresourceid(res.getId());
+				d.setSresourceno(res.getSresourceno());
+				d.setStinypic("");
+				d.setSwarehouse(warehouse.getSwarehousename());
+				d.setSwarehouseid(warehouse.getId());
+				d.setSwoodlevel("");
+				d.setSstockid(stock.getId());
+				this.contractDetailDao.save(d);
+
+				SendOrderDetail sod=new SendOrderDetail();
+				sod.setScontractid(c.getId());
+				sod.setSorderid(so.getId());
+				sod.setScontractdetailid(d.getId());
+				sod.setIorderpackage(1l);
+				sod.setIoutpackage(1l);
+				sod.setBisfinish(Consts.BoolType.YES.val());
+				sod.setFoderweight(fweight);
+				sod.setFoutweight(fweight);
+
+				sendOrderDetailDao.save(sod);
+
+			}
 
 
-			if(B.N(getCellValue(colmap,row, Colums.ht_contract.sinvalidatereason))){
-				String filename=getCellValue(colmap,row, Colums.ht_contract.sinvalidatereason+"CN");
-				billFileService.addFile("/ExcelImport/invoice/"+getCellValue(colmap,row, Colums.ht_contract.sinvalidatereason),
-						B.Y(filename)?getCellValue(colmap,row, Colums.ht_contract.sinvalidatereason):filename,
+
+
+			if(B.N((String) curmap.get(Colums.ht_contract.sinvalidatereason))){
+				String filename=(String) curmap.get(Colums.ht_contract.sinvalidatereason+"CN");
+				billFileService.addFile("/ExcelImport/invoice/"+(String) curmap.get(Colums.ht_contract.sinvalidatereason),
+						B.Y(filename)?(String) curmap.get(Colums.ht_contract.sinvalidatereason):filename,
 						Consts.BillFileType.OpenInvoice.val(), c.getId(), "",
 						c.getSbuyermemberid(), "发票","",Lists.newArrayList(c.getId()),c.getDcontractdate());
 			}
-			if(B.N(getCellValue(colmap,row, Colums.ht_contract.sterms))){
-				String filename=getCellValue(colmap,row, Colums.ht_contract.sterms+"CN");
-				billFileService.addFile("/ExcelImport/contract/"+getCellValue(colmap,row, Colums.ht_contract.sterms),
-						B.Y(filename)?getCellValue(colmap,row, Colums.ht_contract.sterms):filename,
+			if(B.N((String) curmap.get(Colums.ht_contract.sterms))){
+				String filename=(String) curmap.get(Colums.ht_contract.sterms+"CN");
+				billFileService.addFile("/ExcelImport/contract/"+(String) curmap.get(Colums.ht_contract.sterms),
+						B.Y(filename)?(String) curmap.get(Colums.ht_contract.sterms):filename,
 						Consts.BillFileType.Contract.val(), c.getId(), "",
 						c.getSsellermemberid(), "合同","",Lists.newArrayList(c.getId()),c.getDcontractdate());
 			}

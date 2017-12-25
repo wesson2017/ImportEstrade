@@ -43,9 +43,9 @@
 </form>
 <br/><br/><br/>
 <h2>===============导入交易信息=================</h2>
-<h4><a href="${ctx}/ContractImportTemplate.xlsx" target="_blank">点击下载会员导入模块</a></h4>
+<h4><a href="${ctx}/ContractImportTemplate.xlsx" target="_blank">点击下载交易导入模块</a></h4>
 <form action="${ctx}/contract.html" method="post" enctype="multipart/form-data">
-    请选择会员信息文件：<input type="file" name="file"/>
+    请选择交易信息文件：<input type="file" name="file"/>
     <input type="submit" name="提交" id="contractbtn"/>
 </form>
 <br/><br/><br/>
