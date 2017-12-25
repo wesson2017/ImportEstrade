@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+	http://www.springframework.org/schema/beans/spring-beans-3.2.xsd"
+	default-lazy-init="true"> 
+
+	<description>Shiro安全配置</description>
+
+	<!-- Shiro's main business-tier object for web-enabled applications -->
+	<bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+		<property name="realm" ref="shiroDbRealm" />
+		<property name="cacheManager" ref="shiroEhcacheManager" />
+	</bean>
+
+	<!-- 項目自定义的Realm, 所有accountService依赖的dao都需要用depends-on声明 -->
+	<bean id="shiroDbRealm" class="com.frogsing.heart.security.shiro.ShiroDbRealm" depends-on="operatorDao,operatorRoleDao,roleDao,purviewDao ,userDao,userActorDao,actorDao,rightDao,memberDao,singlepointloginDao">
+		<property name="loginService" ref="loginProxy" />
+	</bean>
+	<bean id="myAuthFilter" class="com.frogsing.heart.security.shiro.ShiroFormAuthenticationFilter">
+		<property name="loginService" ref="loginProxy" />
+		<property name="loginUrl" value="/login.html" />
+		<property name="successUrl" value="/index.shtml" />
+	</bean>
+	<bean id="myLogOutFilter" class="com.frogsing.heart.security.shiro.ShiroLogoutFilter">
+		<property name="redirectUrl" value="/login.html" />
+		<property name="loginService" ref="loginProxy" />
+	</bean>
+	<bean id="appAuthFilter" class="com.frogsing.heart.security.shiro.ShiroFormAuthenticationFilter">
+		<property name="loginService" ref="loginProxy" />
+		<property name="loginUrl" value="/app/login.phtml" />
+		<property name="successUrl" value="/app/center.phtml" />
+	</bean>
+	<bean id="appLogoutFilter" class="com.frogsing.heart.security.shiro.ShiroLogoutFilter">
+		<property name="redirectUrl" value="/app/login.phtml" />
+		<property name="loginService" ref="loginProxy" />
+	</bean>
+	<!-- Shiro Filter -->
+	<bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+		<property name="securityManager" ref="securityManager" />
+		<property name="filters">
+			<map>
+				<entry key="authc" value-ref="myAuthFilter"/>
+				<entry key="logout" value-ref="myLogOutFilter"/>
+				<entry key="appauthc" value-ref="appAuthFilter"/>
+				<entry key="applogout" value-ref="appLogoutFilter"/>
+			</map>
+		</property>
+
+
+		<property name="filterChainDefinitions">
+			<value>
+				/captcha.shtml=anon
+				/login.html=authc
+				/**/**.shtml = authc
+				/logout.html = logout
+				/app/login.phtml=appauthc
+				/app/logout.phtml=applogout
+				/static/** = anon
+				/** = anon
+			</value>
+		</property>
+	</bean>
+	
+	<!-- 用户授权信息Cache, 采用EhCache -->
+	<bean id="shiroEhcacheManager" class="org.apache.shiro.cache.ehcache.EhCacheManager">
+		<property name="cacheManagerConfigFile" value="classpath:ehcache/ehcache-shiro.xml"/>
+	</bean>
+	
+	<!-- 保证实现了Shiro内部lifecycle函数的bean执行 -->
+	<bean id="lifecycleBeanPostProcessor" class="org.apache.shiro.spring.LifecycleBeanPostProcessor"/>
+	
+</beans>
