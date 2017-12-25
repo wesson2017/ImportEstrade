@@ -246,6 +246,8 @@ public class ContractExcelReader {
 				//E.S("第" + (i + 1) + "行数据格式不正确");
 			}
 
+			/**------------**/
+
 			if (B.Y(getCellValue(colmap,row, Colums.ht_contract.dcontractdate))) {
 				E.S("第" + (i + 1) + "行合同日期不能为空");
 			}
