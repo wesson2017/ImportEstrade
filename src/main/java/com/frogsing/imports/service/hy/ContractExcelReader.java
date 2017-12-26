@@ -260,7 +260,7 @@ public class ContractExcelReader {
 			if (B.Y(code)) {
 				E.S("第" + (i + 1) + "行合同序号不能为空");
 			}
-			map.put(code, new HashMap<String, Object>());
+
 			if (B.Y(getCellValue(colmap, row, Colums.ht_contractdetail.scommodityname))) {
 				E.S("第" + (i + 1) + "行品名不能为空");
 			}
@@ -292,6 +292,7 @@ public class ContractExcelReader {
 			}
 
 			if (code.indexOf("~") == -1) {
+				map.put(code, new HashMap<String, Object>());
 				if (B.Y(getCellValue(colmap, row, Colums.ht_contract.dcontractdate))) {
 					E.S("第" + (i + 1) + "行合同日期不能为空");
 				}
@@ -731,6 +732,9 @@ public class ContractExcelReader {
 			if(B.Y(list)){
 				list.add(curmap);
 			}
+			c.setFtotalweight(0D);
+			c.setFdeliveryweight(0D);
+			c.setFopenbillweight(0D);
 			for(Map<String,Object> obj:list){
 				fprice=(Double) obj.get(Colums.ht_contractdetail.fprice);
 				fweight=(Double) obj.get(Colums.ht_contractdetail.fweight);
@@ -795,9 +799,13 @@ public class ContractExcelReader {
 
 				sendOrderDetailDao.save(sod);
 
+				c.setFdeliveryweight(F.add(c.getFdeliveryweight(),fweight));
+				c.setFtotalweight(F.add(c.getFtotalweight(),fweight));
+				c.setFopenbillweight(F.add(c.getFopenbillweight(),fweight));
+
 			}
 
-
+			this.contractDao.save(c);
 
 
 			if(B.N((String) curmap.get(Colums.ht_contract.sinvalidatereason))){
