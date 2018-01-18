@@ -752,7 +752,7 @@ public class ContractExcelReader {
 				d.setFsaleprice(fprice);
 				d.setFweight(fweight);
 				d.setFoutprice(fprice);
-				d.setFoutamount(famount);
+				d.setFoutamount(F.multiply(fprice,fweight));
 				d.setFoutweight(fweight);
 				d.setFacceptweight(fweight);
 				d.setForderweight(fweight);
