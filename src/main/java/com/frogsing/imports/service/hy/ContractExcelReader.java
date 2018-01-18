@@ -256,7 +256,7 @@ public class ContractExcelReader {
 				continue;
 				//E.S("第" + (i + 1) + "行数据格式不正确");
 			}
-			if("END".equals(getCellFormatValue(row.getCell(0)))){
+			if("END".equalsIgnoreCase(getCellFormatValue(row.getCell(0)))){
 				break;
 			}
 			String code = getCellValue(colmap, row, Colums.ht_contract.scontractno);
