@@ -190,7 +190,9 @@ public class MemberExcelReader {
 				continue;
 				//E.S("第" + (i + 1) + "行数据格式不正确");
 			}
-
+			if("END".equals(getCellFormatValue(row.getCell(0)))){
+				break;
+			}
 
 			if (B.Y(getCellValue(colmap,row, Colums.hy_member.sshortname))) {
 				E.S("第" + (i + 1) + "行企业简称不能为空");
