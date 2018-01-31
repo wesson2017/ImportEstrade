@@ -233,7 +233,7 @@ public class MemberExcelReader {
 
 			member.setSgpmemberid("");  //挂牌交易会员ID String
 			member.setBismembercert(Consts.BoolType.YES.val());  //是否通过企业认证 int
-			member.setSmemberno("UP"+ParaUtils.seqno(Colums.hy_member.tablename));  //企业编号 String
+			member.setSmemberno(ParaUtils.seqno(Colums.hy_member.tablename));  //企业编号 String
 			member.setScnname(getCellValue(colmap,row,Colums.hy_member.scnname));  //企业名称 String
 			member.setSenname("");  //英文名称 String
 			member.setSshortname(getCellValue(colmap,row,Colums.hy_member.sshortname));  //中文简称 String
@@ -346,7 +346,9 @@ public class MemberExcelReader {
 			member.setSbindno("");  //关联编号 String
 			member.setBissupply(1);  //是否供应商 int
 			member.setBisbuyer(1);  //是否采购商 int
-			member.setSremark(T.now()+"="+excelfilename+"="+i);
+			//member.setSremark(T.now()+"="+excelfilename+"="+i);
+			member.setIflag(Consts.BoolType.YES.val());
+			member.setDflagdate(T.now());
 
 			memberDao.save(member);// 保存会员信息
 
@@ -359,9 +361,9 @@ public class MemberExcelReader {
 			operatorBean.setSphone(getCellValue(colmap,row,Colums.hy_member.sphone));// 联系电话
 
 			operatorBean.setSmemberid(member.getId());// 设置会员ID
-			operatorBean.setSoperatorno("UP"+userDao.getSeqNo(Colums.hy_user.tablename));// 设置交易员编号
+			operatorBean.setSoperatorno(userDao.getSeqNo(Colums.hy_user.tablename));// 设置交易员编号
 			operatorBean.setSpassword(MD5.encode(getCellValue(colmap,row,Colums.hy_user.spassword)));// 加密密码
-			System.out.println("======"+getCellValue(colmap,row,Colums.hy_user.spassword)+"======");
+			//System.out.println("======"+getCellValue(colmap,row,Colums.hy_user.spassword)+"======");
 			operatorBean.setDadddate(T.Date());// 设置交易员添加日期
 			operatorBean.setDmodifydate(T.Date());// 设置最后修改日期
 			operatorBean.setBisadmin(Consts.BoolType.YES.val());// 设置为默认管理员

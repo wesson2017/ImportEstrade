@@ -472,7 +472,7 @@ public class ContractExcelReader {
 			stock.setId(null);
 			stock.setIresourcetype(Consts.SaleResourceType.General.val());  //资源类型 int
 			stock.setSbillid("");  //单据id String
-			String stockno = "UPSK"+DateUtils.dateToString((Date)curmap.get("dcontractdate"),"yyMMdd")+StringHelper.randomNum(10);
+			String stockno = "ZY"+ DateUtils.dateToString((Date)curmap.get("dcontractdate"),"yyMMdd")+ StringHelper.randomNum(6);
 			stock.setSstockno(stockno);  //库存编号 String
 			stock.setIsitetype(Consts.SiteType.Host.val());  //分站 int
 			stock.setIlight(0);  //验证类型 int
@@ -550,7 +550,8 @@ public class ContractExcelReader {
 			stock.setSremark("");  //备注 String
 			stock.setSinputsrc(1);  //录入方式 int
 			stock.setShashcode(hashStock(stock));  //哈希值 String
-
+			stock.setIflag(Consts.BoolType.YES.val());
+			stock.setDflagdate(T.now());
 
 			stockDao.save(stock);
 			List<Map<String,Object>> list=Lists.newArrayList();
@@ -579,7 +580,8 @@ public class ContractExcelReader {
 			SaleResource res=new SaleResource();
 			res.setId(null);
 			//添加挂牌资源
-			String resno="UPZY"+DateUtils.dateToString(dgpdate,"yyMMdd")+StringHelper.randomNum(10);
+
+			String resno="XSB"+ DateUtils.dateToString(dgpdate,"yyyyMMdd")+ StringHelper.randomNum(6);
 			res.setSresourceno(resno);
 			res.setIcredit(0l);
 			res.setFprice(fprice);
@@ -600,6 +602,8 @@ public class ContractExcelReader {
 			res.setIstatus(Consts.GPStatus.Over.val());
 			res.setIdiscounttype(Consts.DiscountType.NO.val());
 			res.setBisprotocal(Consts.BoolType.NO.val());
+			res.setIflag(Consts.BoolType.YES.val());
+			res.setDflagdate(T.now());
 			this.saleResourceDao.save(res);
 
 
@@ -650,7 +654,7 @@ public class ContractExcelReader {
 			c.setSbuyerusername(buyu.getSusername());
 
 
-			String sno = "UPHT"+DateUtils.dateToString(dcontractdate,"yyMMdd")+StringHelper.randomNum(10);
+			String sno = "ZY"+ DateUtils.dateToString(dcontractdate,"yyyyMMdd")+ StringHelper.randomNum(5);
 			c.setSsyscontractno(sno);
 			c.setScontractno(sno);
 			c.setSsellermemberid(seller.getId());
@@ -690,6 +694,8 @@ public class ContractExcelReader {
 			c.setIprogress(Consts.ContractProgress.gFinish.val());
 			c.setIpaymentstatus(Consts.PaymentStatus.B_BaidBuy.val());
 			//c.setSremark(T.now()+"="+excelfilename+"="+i);
+			c.setIflag(Consts.BoolType.YES.val());
+			c.setDflagdate(T.now());
 			this.contractDao.save(c);
 
 
@@ -717,7 +723,7 @@ public class ContractExcelReader {
 			so.setSselleroperatorid(c.getSselleruserid());
 			so.setSsellermemberid(c.getSsellermemberid());
 			so.setScontractid(c.getId());
-			so.setSorderno("UPSO"+DateUtils.dateToString(dorderdate,"yyMMdd")+StringHelper.randomNum(10));
+			so.setSorderno("FH"+ DateUtils.dateToString(dorderdate,"yyMMdd")+ StringHelper.randomNum(5));
 			so.setSwarehouseid(c.getSwarehouseid());
 			so.setDadddate(dorderdate);
 			so.setDorderdate(dorderdate);
@@ -730,6 +736,8 @@ public class ContractExcelReader {
 			so.setDmodifydate(dacceptdate);
 			so.setDacceptdate(dacceptdate);
 			so.setBisfinish(Consts.BoolType.YES.val());
+			so.setIflag(Consts.BoolType.YES.val());
+			so.setDflagdate(T.now());
 			sendOrderDao.save(so);
 
 			if(B.Y(list)){
@@ -829,7 +837,7 @@ public class ContractExcelReader {
 			//生成支付单
 			BillPay obj=new BillPay();
 			obj.setId(null);
-			obj.setSpayno("UPBP"+DateUtils.dateToString(dpaydate,"yyMMdd")+StringHelper.randomNum(10));
+			obj.setSpayno("ZF"+ DateUtils.dateToString(dpaydate,"yyyyMMdd")+ StringHelper.randomNum(6));
 			obj.setIbanktype(c.getIbanktype());
 			obj.setIacctpaytype(Consts.AcctcPayType.OFFLINE.val());
 			obj.setSbillid(c.getId());
@@ -853,7 +861,8 @@ public class ContractExcelReader {
 			obj.setIcanceltype(Consts.BillPayCancelType.No.val());
 			obj.setSpaybiztype(AsyncPayFundType.LongContractAccept.val());
 			obj.setIversion(0L);
-
+			obj.setIflag(Consts.BoolType.YES.val());
+			obj.setDflagdate(T.now());
 			this.billPayDao.save(obj);
 		}
 	}
